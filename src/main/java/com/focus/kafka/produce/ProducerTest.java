@@ -11,10 +11,13 @@ import java.util.concurrent.Future;
 public class ProducerTest {
 
 
+    /**
+     * ./bin/kafka-topics.sh --create --bootstrap-server 127.0.0.1:9092 --replication-factor 1 --partitions 2 --topic test2
+     **/
     @Test
     public void producer() throws ExecutionException, InterruptedException {
 
-        String topic = "test3";
+        String topic = "test2";
         Properties p = new Properties();
         p.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         //kafka  持久化数据的MQ  数据-> byte[]，不会对数据进行干预，双方要约定编解码
@@ -37,6 +40,7 @@ public class ProducerTest {
                 for (int j = 0; j < 3; j++) {
                     ProducerRecord<String, String> record = new ProducerRecord<>(topic, "item" + j, "val" + i);
 //                    Future<RecordMetadata> send = producer.send(record);
+
                     Future<RecordMetadata> send = producer.send(record, new Callback() {
                         @Override
                         public void onCompletion(RecordMetadata metadata, Exception exception) {
@@ -53,9 +57,6 @@ public class ProducerTest {
                 }
             }
         }
-
-
-
 
 
     }

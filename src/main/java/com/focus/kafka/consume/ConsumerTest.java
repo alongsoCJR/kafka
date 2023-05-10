@@ -16,6 +16,7 @@ public class ConsumerTest {
 
 
         /** ./bin/kafka-topics.sh --list --bootstrap-server 127.0.0.1:9092
+         *  ./bin/kafka-topics.sh --describe --bootstrap-server 127.0.0.1:9092 --topic test2
          * **/
 
         //基础配置
@@ -137,8 +138,7 @@ public class ConsumerTest {
             if (!records.isEmpty()) {
                 //以下代码的优化很重要
                 System.out.println("-----------" + records.count() + "-------------");
-                Set<TopicPartition> partitions = records.partitions(); //每次poll的时候是取多个分区的数据
-                //且每个分区内的数据是有序的
+                Set<TopicPartition> partitions = records.partitions(); //每次poll的时候是取多个分区的数据,且每个分区内的数据是有序的
 
                 /**
                  * 如果手动提交offset
@@ -214,12 +214,12 @@ public class ConsumerTest {
     }
 
 
-
-
     @Test
     public void consumer0() {
         /**
          * ./bin/kafka-topics.sh --list --bootstrap-server 127.0.0.1:9092
+         * 查看topic: ./bin/kafka-topics.sh --describe --bootstrap-server 127.0.0.1:9092 --topic test2
+         * 查看消费者组消费的进度offset: ./bin/kafka-consumer-groups.sh  --bootstrap-server 127.0.0.1:9092 --group consumer0 --describe
          **/
 
         //基础配置
@@ -229,7 +229,7 @@ public class ConsumerTest {
         p.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //消费的细节
-        p.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "consumer2");
+        p.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "consumer0");
         //KAKFA IS MQ  IS STORAGE
         p.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");//第一次启动，没有offset
         /**
@@ -243,32 +243,19 @@ public class ConsumerTest {
          *         </ul>";
          */
         p.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");//自动提交时异步提交，丢数据&&重复数据
-        //一个运行的consumer ，那么自己会维护自己消费进度
-        //一旦你自动提交，但是是异步的
-        //1，还没到时间，挂了，没提交，重起一个consuemr，参照offset的时候，会重复消费
-        //2，一个批次的数据还没写数据库成功，但是这个批次的offset背异步提交了，挂了，重起一个consuemr，参照offset的时候，会丢失消费
 
-        p.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,"5000");//5秒
+        p.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "5000");//5秒
 //        p.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,""); // POLL 拉取数据，弹性，按需，拉取多少？
 
 
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(p);
 
-
         //kafka 的consumer会动态负载均衡
-        consumer.subscribe(Arrays.asList("test3"));
+        consumer.subscribe(Arrays.asList("test2"));
 
         while (true) {
-            /**
-             * 常识：如果想多线程处理多分区
-             * 每poll一次，用一个语义：一个job启动
-             * 一次job用多线程并行处理分区
-             * 且，job应该被控制是串行的
-             * 以上的知识点，其实如果你学过大数据
-             */
             //微批的感觉
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(0));// 0~n
-
 
             Iterator<ConsumerRecord<String, String>> iter = records.iterator();
             while (iter.hasNext()) {
@@ -276,9 +263,6 @@ public class ConsumerTest {
                 ConsumerRecord<String, String> record = iter.next();
                 int partition = record.partition();
                 long offset = record.offset();
-                String key = record.key();
-                String value = record.value();
-
                 System.out.println("key: " + record.key() + " val: " + record.value() + " partition: " + partition + " offset: " + offset);
             }
         }
